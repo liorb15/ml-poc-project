@@ -30,12 +30,17 @@ MODEL_METRICS_FILE = RESULTS_DIR / "model_metrics.csv"
 STREAMLIT_HOST = "localhost"
 STREAMLIT_PORT = 8501
 
-# Students must replace this example with their trained models.
-# Each entry must point to a serialized model saved as `.joblib`, `.pkl`, or `.pickle`.
+MIKROKOSMOS_DIR = DATA_DIR / "external" / "Mikrokosmos-difficulty"
+
 MODELS = {
-    "model_a": {
-        "name": "Model A",
-        "description": "A simple baseline model.",
-        "path": MODELS_DIR / "model_a.pkl",
+    "log_reg": {
+        "name": "Logistic Regression",
+        "description": "Baseline linear classifier on symbolic score features.",
+        "path": MODELS_DIR / "mikrokosmos_log_reg.joblib",
+    },
+    "random_forest": {
+        "name": "Random Forest",
+        "description": "Tree ensemble baseline on symbolic score features.",
+        "path": MODELS_DIR / "mikrokosmos_random_forest.joblib",
     },
 }

@@ -317,3 +317,8 @@ http-client.private.env.json
 
 # Exclude logs directory
 logs/*
+
+# Local datasets and generated artifacts
+/data/external/
+/models/
+/results/
