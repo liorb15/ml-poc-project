@@ -47,28 +47,18 @@ Je souhaite travailler à partir de **données musicales symboliques** plutôt q
 
 Les sources de données actuellement identifiées sont les suivantes.
 
-### 1. CIPI dataset
-C’est à ce stade le dataset le plus pertinent pour le projet.
-
-Intérêt principal :
-- morceaux de piano classique ;
-- partitions en **MusicXML** ;
-- **niveaux de difficulté annotés** ;
-- métadonnées utiles sur les œuvres.
-
-Ce dataset semble le plus aligné avec l’objectif principal de prédiction de difficulté.
-
-### 2. Mikrokosmos-difficulty
-Ce dataset constitue un bon point de départ technique pour prototyper le projet.
+### 1. Mikrokosmos-difficulty
+Comme l’accès au dataset CIPI n’est finalement pas disponible, ce dataset devient la **base principale du projet** pour cette première version.
 
 Intérêt principal :
 - partitions **MusicXML** directement exploitables ;
 - niveaux de difficulté associés ;
-- structure de données propre et facile à intégrer dans le pipeline.
+- structure de données propre et facile à intégrer dans le pipeline ;
+- dataset suffisant pour construire un prototype complet de bout en bout.
 
-Sa principale limite est qu’il est centré sur l’univers de **Bartók / Mikrokosmos**, donc moins riche pour une recommandation variée en termes de style et de compositeurs.
+Sa principale limite est qu’il est centré sur l’univers de **Bartók / Mikrokosmos**, donc moins riche pour une recommandation variée en termes de style et de compositeurs. En revanche, il reste tout à fait pertinent pour valider le cœur du projet : **la prédiction de difficulté pianistique à partir de partitions symboliques**.
 
-### 3. PianoLibrary
+### 2. PianoLibrary
 Cette source est intéressante surtout pour la **partie recommandation**.
 
 Intérêt principal :
@@ -78,8 +68,8 @@ Intérêt principal :
 
 Cette base pourrait être utile pour enrichir le catalogue final de recommandations, même si elle n’est pas forcément idéale comme dataset principal d’entraînement.
 
-### 4. Datasets complémentaires éventuels
-D’autres sources comme **MAESTRO**, **ASAP** ou d’autres jeux de données symboliques pourraient être utilisées pour enrichir certaines métadonnées ou certaines caractéristiques musicales, si cela s’avère utile par la suite.
+### 3. Datasets complémentaires éventuels
+D’autres sources comme **MAESTRO**, **ASAP** ou d’autres jeux de données symboliques pourraient être utilisées plus tard pour enrichir certaines métadonnées ou certaines caractéristiques musicales, si cela s’avère utile par la suite.
 
 ## Variables et informations envisagées
 Les variables utilisées dépendront du dataset final, mais je souhaite m’appuyer sur des caractéristiques telles que :
