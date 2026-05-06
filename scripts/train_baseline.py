@@ -5,10 +5,6 @@ import sys
 from pathlib import Path
 
 import joblib
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.linear_model import LogisticRegression
-from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import StandardScaler
 
 
 
@@ -29,31 +25,12 @@ config = _load_module("project_config", SRC_DIR / "config.py")
 sys.modules["config"] = config
 
 data_module = _load_module("project_data", SRC_DIR / "data.py")
+baselines_module = _load_module("project_baselines", SRC_DIR / "baselines.py")
 load_dataset_split = data_module.load_dataset_split
+build_models = baselines_module.build_models
 
 
-MODELS_TO_TRAIN = {
-    "log_reg": Pipeline(
-        [
-            ("scaler", StandardScaler()),
-            (
-                "classifier",
-                LogisticRegression(
-                    max_iter=2000,
-                    class_weight="balanced",
-                    random_state=42,
-                ),
-            ),
-        ]
-    ),
-    "random_forest": RandomForestClassifier(
-        n_estimators=300,
-        max_depth=10,
-        min_samples_leaf=2,
-        class_weight="balanced_subsample",
-        random_state=42,
-    ),
-}
+MODELS_TO_TRAIN = build_models()
 
 
 def main() -> None:

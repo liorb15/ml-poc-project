@@ -21,6 +21,13 @@ def get_project_context() -> dict[str, object]:
         "feature_groups": [
             "volume and density of notes",
             "rests and rhythmic pacing",
+            "rhythmic variety across note durations",
+            "normalized note density per pitch class",
+            "notes per measure normalized by pitch variety",
+            "tempo-normalized note density per pitch class",
+            "duration variability normalized by average note length",
+            "tempo × duration-variability interaction",
+            "pitch span normalized by pitch variety",
             "pitch span and pitch variety",
             "melodic interval jumps",
             "tempo-derived density proxy",
@@ -37,7 +44,17 @@ def get_project_context() -> dict[str, object]:
 def load_metrics_dataframe() -> pd.DataFrame:
     if not MODEL_METRICS_FILE.exists():
         return pd.DataFrame(
-            columns=["model_key", "model_name", "model_path", "accuracy", "macro_f1"]
+            columns=[
+                "model_key",
+                "model_name",
+                "model_path",
+                "accuracy",
+                "macro_f1",
+                "cv_accuracy_mean",
+                "cv_accuracy_std",
+                "cv_macro_f1_mean",
+                "cv_macro_f1_std",
+            ]
         )
 
     metrics_df = pd.read_csv(MODEL_METRICS_FILE)
@@ -159,9 +176,9 @@ def build_app() -> None:
     st.subheader("Next steps")
     st.markdown(
         """
-        - enrich symbolic feature extraction further
-        - plug in a broader dataset such as CIPI when access is available
-        - add recommendation logic based on style/composer similarity and difficulty compatibility
+        - deepen symbolic feature extraction on the current Mikrokosmos pipeline
+        - strengthen the recommendation layer using metadata and similarity on the existing catalogue
+        - optionally add a broader symbolic dataset later if access becomes possible
         - turn the prototype into a user-facing exploration tool
         """
     )

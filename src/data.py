@@ -16,7 +16,7 @@ from typing import Any
 import pandas as pd
 from sklearn.model_selection import train_test_split
 
-from config import DATA_DIR
+from config import CIPI_DIR, DATA_DIR, DATASET_NAME
 
 MIKROKOSMOS_DIR = DATA_DIR / "external" / "Mikrokosmos-difficulty"
 MIKROKOSMOS_XML_DIR = MIKROKOSMOS_DIR / "musicxml"
@@ -26,6 +26,38 @@ BOOK_CODES = {
     "Mikrokosmos, Volumes III-IV": 2,
     "Mikrokosmos, Volumes V-VI": 3,
 }
+SUPPORTED_DATASETS = {"mikrokosmos", "cipi"}
+FEATURE_COLUMNS = [
+    "notes_total",
+    "notes_played",
+    "rests",
+    "measures",
+    "chord_notes",
+    "pitch_span",
+    "avg_duration",
+    "notes_per_measure",
+    "chord_ratio",
+    "rest_ratio",
+    "unique_pitch_count",
+    "notes_per_pitch_class",
+    "notes_per_measure_per_pitch_class",
+    "avg_pitch_interval",
+    "max_pitch_interval",
+    "tempo_mean",
+    "notes_per_second_proxy",
+    "duration_std",
+    "duration_cv_proxy",
+    "rhythmic_variety",
+    "accidental_ratio",
+    "key_signature_complexity",
+    "time_signature_changes",
+    "book_code",
+]
+TARGET_COLUMN = "difficulty_label"
+
+
+def _selected_dataset_name() -> str:
+    return DATASET_NAME
 
 
 def _coarse_difficulty(label: str) -> str:
@@ -72,6 +104,29 @@ def _load_mikrokosmos_dataframe() -> pd.DataFrame:
     return pd.DataFrame(rows).sort_values("piece_id").reset_index(drop=True)
 
 
+def _load_cipi_dataframe() -> pd.DataFrame:
+    if not CIPI_DIR.exists():
+        raise FileNotFoundError(
+            f"CIPI dataset directory not found: {CIPI_DIR}. Set CIPI_DIR or place the dataset there."
+        )
+
+    raise FileNotFoundError(
+        "CIPI dataset support is not wired yet: the directory exists, but no CIPI parser has been implemented."
+    )
+
+
+def _load_selected_dataset_dataframe() -> pd.DataFrame:
+    dataset_name = _selected_dataset_name()
+    if dataset_name == "mikrokosmos":
+        return _load_mikrokosmos_dataframe()
+    if dataset_name == "cipi":
+        return _load_cipi_dataframe()
+
+    raise ValueError(
+        f"Unsupported dataset `{dataset_name}`. Supported datasets: {sorted(SUPPORTED_DATASETS)}"
+    )
+
+
 def _extract_symbolic_features(xml_path: Path) -> dict[str, float]:
     root = ET.parse(xml_path).getroot()
     note_nodes = root.findall(".//note")
@@ -83,7 +138,9 @@ def _extract_symbolic_features(xml_path: Path) -> dict[str, float]:
     durations: list[int] = []
     pitch_values: list[int] = []
     pitch_intervals: list[int] = []
+    chord_cluster_sizes: list[int] = []
     previous_pitch: int | None = None
+    current_chord_cluster_size = 0
     tempo_values: list[float] = []
     key_signature_values: list[int] = []
     time_signatures: list[tuple[int, int]] = []
@@ -127,6 +184,11 @@ def _extract_symbolic_features(xml_path: Path) -> dict[str, float]:
         played_notes += 1
         if note.find("chord") is not None:
             chord_notes += 1
+            current_chord_cluster_size += 1
+        else:
+            if current_chord_cluster_size:
+                chord_cluster_sizes.append(current_chord_cluster_size)
+            current_chord_cluster_size = 1
 
         step = note.findtext("pitch/step")
         octave = note.findtext("pitch/octave")
@@ -138,19 +200,48 @@ def _extract_symbolic_features(xml_path: Path) -> dict[str, float]:
                 pitch_intervals.append(abs(pitch - previous_pitch))
             previous_pitch = pitch
 
+    if current_chord_cluster_size:
+        chord_cluster_sizes.append(current_chord_cluster_size)
+
     measure_count = len(measure_nodes)
     pitch_span = max(pitch_values) - min(pitch_values) if pitch_values else 0
+    pitch_std = statistics.pstdev(pitch_values) if len(pitch_values) > 1 else 0.0
     avg_duration = statistics.mean(durations) if durations else 0.0
     duration_std = statistics.pstdev(durations) if len(durations) > 1 else 0.0
+    rhythmic_variety = float(len(set(durations))) if durations else 0.0
     avg_pitch_interval = statistics.mean(pitch_intervals) if pitch_intervals else 0.0
     max_pitch_interval = max(pitch_intervals) if pitch_intervals else 0.0
+    large_leap_ratio = (
+        float(sum(1 for interval in pitch_intervals if interval >= 7) / len(pitch_intervals))
+        if pitch_intervals
+        else 0.0
+    )
     unique_pitch_count = len(set(pitch_values)) if pitch_values else 0
+    notes_per_pitch_class = (
+        float(played_notes / unique_pitch_count) if unique_pitch_count else 0.0
+    )
+    notes_per_measure_per_pitch_class = (
+        float((played_notes / measure_count) / unique_pitch_count)
+        if measure_count and unique_pitch_count
+        else 0.0
+    )
+    span_per_unique_pitch = (
+        float(pitch_span / unique_pitch_count) if unique_pitch_count else 0.0
+    )
+    avg_chord_cluster_size = (
+        statistics.mean(chord_cluster_sizes) if chord_cluster_sizes else 0.0
+    )
     rest_ratio = float(rests / len(note_nodes)) if note_nodes else 0.0
     accidental_ratio = float(sum(1 for n in pitch_values if (n % 12) not in {0,2,4,5,7,9,11}) / played_notes) if played_notes else 0.0
     tempo_mean = statistics.mean(tempo_values) if tempo_values else 0.0
     key_signature_complexity = statistics.mean(key_signature_values) if key_signature_values else 0.0
     time_signature_changes = max(len(set(time_signatures)) - 1, 0) if time_signatures else 0.0
     notes_per_second_proxy = float(played_notes * tempo_mean / 60.0) if tempo_mean else 0.0
+    notes_per_second_per_pitch_class = (
+        float(notes_per_second_proxy / unique_pitch_count) if unique_pitch_count else 0.0
+    )
+    duration_cv_proxy = float(duration_std / (avg_duration + 1.0)) if avg_duration or duration_std else 0.0
+    tempo_duration_interaction = float(tempo_mean * duration_cv_proxy) if tempo_mean or duration_cv_proxy else 0.0
 
     return {
         "notes_total": float(len(note_nodes)),
@@ -159,20 +250,39 @@ def _extract_symbolic_features(xml_path: Path) -> dict[str, float]:
         "measures": float(measure_count),
         "chord_notes": float(chord_notes),
         "pitch_span": float(pitch_span),
+        "pitch_std": float(pitch_std),
         "avg_duration": float(avg_duration),
         "notes_per_measure": float(played_notes / measure_count) if measure_count else 0.0,
         "chord_ratio": float(chord_notes / played_notes) if played_notes else 0.0,
+        "avg_chord_cluster_size": float(avg_chord_cluster_size),
         "rest_ratio": float(rest_ratio),
         "unique_pitch_count": float(unique_pitch_count),
+        "notes_per_pitch_class": float(notes_per_pitch_class),
+        "notes_per_measure_per_pitch_class": float(notes_per_measure_per_pitch_class),
+        "span_per_unique_pitch": float(span_per_unique_pitch),
         "avg_pitch_interval": float(avg_pitch_interval),
         "max_pitch_interval": float(max_pitch_interval),
+        "large_leap_ratio": float(large_leap_ratio),
         "tempo_mean": float(tempo_mean),
         "notes_per_second_proxy": float(notes_per_second_proxy),
+        "notes_per_second_per_pitch_class": float(notes_per_second_per_pitch_class),
         "duration_std": float(duration_std),
+        "duration_cv_proxy": float(duration_cv_proxy),
+        "tempo_duration_interaction": float(tempo_duration_interaction),
+        "rhythmic_variety": float(rhythmic_variety),
         "accidental_ratio": float(accidental_ratio),
         "key_signature_complexity": float(key_signature_complexity),
         "time_signature_changes": float(time_signature_changes),
     }
+
+
+def load_feature_target_dataset() -> tuple[pd.DataFrame, pd.Series]:
+    """Return the feature matrix X and target vector y for the selected dataset."""
+
+    dataset_df = _load_selected_dataset_dataframe()
+    X = dataset_df[FEATURE_COLUMNS].copy()
+    y = dataset_df[TARGET_COLUMN].copy()
+    return X, y
 
 
 def load_dataset_split() -> tuple[Any, Any, Any, Any]:
@@ -182,32 +292,7 @@ def load_dataset_split() -> tuple[Any, Any, Any, Any]:
     Mikrokosmos difficulty dataset and predicts a coarse difficulty label.
     """
 
-    dataset_df = _load_mikrokosmos_dataframe()
-    feature_columns = [
-        "notes_total",
-        "notes_played",
-        "rests",
-        "measures",
-        "chord_notes",
-        "pitch_span",
-        "avg_duration",
-        "notes_per_measure",
-        "chord_ratio",
-        "rest_ratio",
-        "unique_pitch_count",
-        "avg_pitch_interval",
-        "max_pitch_interval",
-        "tempo_mean",
-        "notes_per_second_proxy",
-        "duration_std",
-        "accidental_ratio",
-        "key_signature_complexity",
-        "time_signature_changes",
-        "book_code",
-    ]
-
-    X = dataset_df[feature_columns].copy()
-    y = dataset_df["difficulty_label"].copy()
+    X, y = load_feature_target_dataset()
 
     return tuple(
         train_test_split(

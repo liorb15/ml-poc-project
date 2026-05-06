@@ -6,6 +6,7 @@ jupyter
 loguru
 matplotlib
 numpy
+optuna
 pandas
 plotly
 python-dotenv

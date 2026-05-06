@@ -139,10 +139,13 @@ On this dataset, several intuitive additions made the model worse or left it unc
 ---
 
 ## 6. Models tested and current best model
-Two main baselines were used throughout the project:
+Three baselines are now used in the project so the comparison stays broad enough for Assignment 3:
 
 ### Logistic Regression
 Used as an interpretable linear baseline with scaling and class balancing.
+
+### SVM (RBF)
+Used as a kernel baseline on standardized symbolic features to test a nonlinear margin-based classifier.
 
 ### Random Forest
 Used as a nonlinear baseline better suited to interactions between handcrafted symbolic features.
@@ -151,17 +154,48 @@ Used as a nonlinear baseline better suited to interactions between handcrafted s
 After the current best retained feature set:
 
 - **Logistic Regression**
-  - accuracy: 0.8667
-  - macro F1: 0.5910
+  - holdout accuracy: 0.8667
+  - holdout macro F1: 0.5910
+  - cross-validation accuracy mean: 0.7866
+  - cross-validation accuracy std: 0.0367
+  - cross-validation macro F1 mean: 0.6576
+  - cross-validation macro F1 std: 0.1186
+
+- **SVM (RBF)**
+  - holdout accuracy: 0.7333
+  - holdout macro F1: 0.5051
+  - cross-validation accuracy mean: 0.7783
+  - cross-validation accuracy std: 0.0980
+  - cross-validation macro F1 mean: 0.5601
+  - cross-validation macro F1 std: 0.0957
 
 - **Random Forest**
-  - accuracy: 0.8667
-  - macro F1: 0.7481
+  - holdout accuracy: 0.8667
+  - holdout macro F1: 0.7481
+  - cross-validation accuracy mean: 0.8033
+  - cross-validation accuracy std: 0.0931
+  - cross-validation macro F1 mean: 0.6855
+  - cross-validation macro F1 std: 0.1465
 
 ### Current best choice
-The best practical model at the moment is the **Random Forest**.
+The best practical baseline at the moment is still the **Random Forest**.
 
-It performs especially better on macro F1, which matters because the class distribution is imbalanced.
+It performs better on holdout macro F1 and remains slightly ahead on cross-validation macro F1. The **SVM (RBF)** satisfies the third-model comparison requirement, but it is clearly weaker than the Random Forest on the current corpus.
+
+### Optuna follow-up on the best baseline
+To push the project a bit further than manual baseline settings, an **Optuna** tuning pass was added for the Random Forest.
+
+This tuning runs **as a separate script** and maximizes **cross-validation macro F1** on the full `X, y` dataset. So it should be read as a **follow-up hyperparameter-search experiment**, not yet as the main baseline row used in the comparison table above.
+
+After **20 trials**, the best configuration found was:
+- `n_estimators = 400`
+- `max_depth = 10`
+- `min_samples_leaf = 4`
+- `max_features = log2`
+
+The best cross-validation macro F1 reached about **0.7253**.
+
+This is useful for Assignment 3 because it shows the project goes beyond comparing three baselines and also attempts principled hyperparameter optimization on the strongest candidate. But the score should not be over-read as a strict apples-to-apples replacement for the baseline table above, since the tuning protocol is separate.
 
 ---
 

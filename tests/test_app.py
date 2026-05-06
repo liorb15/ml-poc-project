@@ -21,6 +21,9 @@ def _load_module(module_name: str, module_path: Path):
 def test_load_metrics_dataframe_returns_ranked_results():
     config_module = _load_module("project_config", SRC_DIR / "config.py")
     sys.modules["config"] = config_module
+    main_module = _load_module("project_main_for_app_test", PROJECT_ROOT / "scripts" / "main.py")
+    _, X_test, _, y_test = main_module._load_dataset()
+    main_module.write_metrics(main_module._evaluate_models(X_test, y_test))
     app_module = _load_module("project_app", SRC_DIR / "app.py")
 
     metrics_df = app_module.load_metrics_dataframe()
@@ -33,6 +36,10 @@ def test_load_metrics_dataframe_returns_ranked_results():
         "model_path",
         "accuracy",
         "macro_f1",
+        "cv_accuracy_mean",
+        "cv_accuracy_std",
+        "cv_macro_f1_mean",
+        "cv_macro_f1_std",
     ]
     assert metrics_df.iloc[0]["macro_f1"] >= metrics_df.iloc[-1]["macro_f1"]
 

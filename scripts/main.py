@@ -8,6 +8,8 @@ from pathlib import Path
 from typing import Any
 
 from dotenv import load_dotenv
+from sklearn.base import clone
+from sklearn.model_selection import StratifiedKFold, cross_validate
 
 
 def _load_module(module_name: str, module_path: Path) -> Any:
@@ -34,13 +36,13 @@ STREAMLIT_PORT = config.STREAMLIT_PORT
 
 data_module = _load_module("project_data", SRC_DIR / "data.py")
 metrics_module = _load_module("project_metrics", SRC_DIR / "metrics.py")
-model_io_module = _load_module("project_model_io", SRC_DIR / "model_io.py")
 results_module = _load_module("project_results", SRC_DIR / "results.py")
+baselines_module = _load_module("project_baselines", SRC_DIR / "baselines.py")
 
 load_dataset_split = data_module.load_dataset_split
 compute_metrics = metrics_module.compute_metrics
-load_model = model_io_module.load_model
 write_metrics = results_module.write_metrics
+build_models = baselines_module.build_models
 
 
 def _validate_models_config() -> None:
@@ -84,22 +86,36 @@ def _load_dataset() -> tuple[Any, Any, Any, Any]:
 
 def _evaluate_models(X_test: Any, y_test: Any) -> list[dict[str, object]]:
     rows: list[dict[str, object]] = []
+    X_train, _, y_train, _ = _load_dataset()
+    cv_splitter = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+    scoring = {"accuracy": "accuracy", "macro_f1": "f1_macro"}
+    model_builders = build_models()
 
     for model_key, model_config in MODELS.items():
-        model = load_model(Path(model_config["path"]))
-
-        if not hasattr(model, "predict"):
-            raise TypeError(
-                f"Loaded object for model `{model_key}` does not expose a `predict` method."
+        if model_key not in model_builders:
+            raise KeyError(
+                f"No baseline builder found for model `{model_key}`."
             )
 
-        y_pred = model.predict(X_test)
+        holdout_model = clone(model_builders[model_key])
+        holdout_model.fit(X_train, y_train)
+        y_pred = holdout_model.predict(X_test)
         metrics = compute_metrics(y_test, y_pred)
 
         if not isinstance(metrics, dict) or not metrics:
             raise ValueError(
                 "metrics.compute_metrics() must return a non-empty dictionary."
             )
+
+        cv_model = clone(model_builders[model_key])
+        cv_results = cross_validate(
+            cv_model,
+            X_train,
+            y_train,
+            cv=cv_splitter,
+            scoring=scoring,
+            n_jobs=None,
+        )
 
         row: dict[str, object] = {
             "model_key": model_key,
@@ -109,6 +125,11 @@ def _evaluate_models(X_test: Any, y_test: Any) -> list[dict[str, object]]:
 
         for metric_name, metric_value in metrics.items():
             row[metric_name] = float(metric_value)
+
+        row["cv_accuracy_mean"] = float(cv_results["test_accuracy"].mean())
+        row["cv_accuracy_std"] = float(cv_results["test_accuracy"].std())
+        row["cv_macro_f1_mean"] = float(cv_results["test_macro_f1"].mean())
+        row["cv_macro_f1_std"] = float(cv_results["test_macro_f1"].std())
 
         rows.append(row)
 
