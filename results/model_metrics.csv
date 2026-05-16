@@ -1,0 +1,4 @@
+model_key,model_name,model_path,accuracy,macro_f1,cv_accuracy_mean,cv_accuracy_std,cv_macro_f1_mean,cv_macro_f1_std
+log_reg,Logistic Regression,/home/snowy/ml-poc-project/models/mikrokosmos_log_reg.joblib,0.8666666666666667,0.5909909909909911,0.7865942028985508,0.03670702939685202,0.6576079941563812,0.11859012935206048
+svm_rbf,SVM (RBF),/home/snowy/ml-poc-project/models/mikrokosmos_svm_rbf.joblib,0.7333333333333333,0.5050505050505051,0.7782608695652173,0.09803788130601603,0.5601126748495169,0.09573477821799835
+random_forest,Random Forest,/home/snowy/ml-poc-project/models/mikrokosmos_random_forest.joblib,0.8666666666666667,0.7481481481481481,0.8032608695652174,0.09314906645925454,0.685524161223086,0.14650514981801227

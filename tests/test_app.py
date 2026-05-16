@@ -200,8 +200,7 @@ def test_predict_musicxml_bytes_returns_prediction_payload():
     sys.modules["config"] = config_module
     app_module = _load_module("project_app_predict_demo", SRC_DIR / "app.py")
 
-    sample_xml_path = PROJECT_ROOT / "data" / "external" / "Mikrokosmos-difficulty" / "musicxml" / "99.xml"
-    xml_bytes = sample_xml_path.read_bytes()
+    xml_bytes = config_module.DEMO_MIKROKOSMOS_XML_FILE.read_bytes()
 
     payload = app_module.predict_musicxml_bytes(xml_bytes, filename="99.xml")
 
@@ -223,8 +222,7 @@ def test_predict_musicxml_bytes_accepts_mxl_archive():
     sys.modules["config"] = config_module
     app_module = _load_module("project_app_predict_mxl", SRC_DIR / "app.py")
 
-    sample_xml_path = PROJECT_ROOT / "data" / "external" / "Mikrokosmos-difficulty" / "musicxml" / "99.xml"
-    xml_bytes = sample_xml_path.read_bytes()
+    xml_bytes = config_module.DEMO_MIKROKOSMOS_XML_FILE.read_bytes()
 
     archive_buffer = io.BytesIO()
     with zipfile.ZipFile(archive_buffer, mode="w") as archive:
@@ -235,6 +233,33 @@ def test_predict_musicxml_bytes_accepts_mxl_archive():
     assert payload["source_filename"] == "demo.mxl"
     assert payload["predicted_label"] in {"beginner", "intermediate", "advanced"}
     assert len(payload["probability_frame"]) == 3
+
+
+def test_recommend_musicxml_bytes_returns_same_level_neighbors_with_similarity_scores():
+    config_module = _load_module("project_config_recommend_demo", SRC_DIR / "config.py")
+    sys.modules["config"] = config_module
+    app_module = _load_module("project_app_recommend_demo", SRC_DIR / "app.py")
+
+    xml_bytes = config_module.DEMO_MIKROKOSMOS_XML_FILE.read_bytes()
+
+    payload = app_module.predict_musicxml_bytes(xml_bytes, filename="99.xml")
+    recommendations_df = app_module.recommend_musicxml_bytes(xml_bytes, filename="99.xml", top_k=5)
+
+    assert isinstance(recommendations_df, pd.DataFrame)
+    assert len(recommendations_df) == 5
+    assert list(recommendations_df.columns) == [
+        "piece_id",
+        "work",
+        "book",
+        "difficulty_label",
+        "henle_difficulty",
+        "distance",
+        "similarity_score",
+    ]
+    assert set(recommendations_df["difficulty_label"]) == {payload["predicted_label"]}
+    assert recommendations_df["distance"].is_monotonic_increasing
+    assert recommendations_df["similarity_score"].between(0.0, 1.0).all()
+    assert 99 not in set(recommendations_df["piece_id"])
 
 
 def test_streamlit_demo_accepts_mxl_extension_in_uploader_definition():

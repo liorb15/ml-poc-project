@@ -34,6 +34,21 @@ def test_load_feature_target_dataset_returns_explicit_X_and_y():
     assert set(y.unique()) <= {"beginner", "intermediate", "advanced"}
 
 
+def test_load_catalog_dataframe_returns_piece_metadata_and_features():
+    config_module = _load_module("project_config_catalog", SRC_DIR / "config.py")
+    sys.modules["config"] = config_module
+    data_module = _load_module("project_data_catalog", SRC_DIR / "data.py")
+
+    catalog_df = data_module.load_catalog_dataframe()
+
+    assert isinstance(catalog_df, pd.DataFrame)
+    assert len(catalog_df) == 147
+    assert {"piece_id", "work", "book", "composer", "henle_difficulty", "difficulty_label"} <= set(catalog_df.columns)
+    assert set(data_module.FEATURE_COLUMNS) <= set(catalog_df.columns)
+    assert catalog_df["piece_id"].is_unique
+    assert set(catalog_df["difficulty_label"].unique()) <= {"beginner", "intermediate", "advanced"}
+
+
 def test_load_dataset_split_returns_non_empty_train_test_split():
     config_module = _load_module("project_config", SRC_DIR / "config.py")
     sys.modules["config"] = config_module

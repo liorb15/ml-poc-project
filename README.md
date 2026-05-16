@@ -4,6 +4,34 @@ This repository is the base template that each student will fork and adapt for t
 
 The template already defines the project structure and the main execution workflow. Your job as a student is to plug your own dataset loading logic, trained models, evaluation metrics, and Streamlit presentation into the fixed contracts described below.
 
+## Run the piano prototype without retraining
+
+The repository is meant to be runnable from a fork without retraining the model. The trained `.joblib` models and evaluation outputs must be present in the repository, and the app can use a lightweight processed catalog instead of the full raw Mikrokosmos dataset.
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+
+# Professor / complete project app
+PYTHONPATH=src streamlit run src/app.py
+
+# Presentation-focused app
+PYTHONPATH=src streamlit run src/app_oral.py
+```
+
+Expected precomputed artifacts:
+
+- `models/mikrokosmos_random_forest.joblib`
+- `models/mikrokosmos_log_reg.joblib`
+- `models/mikrokosmos_svm_rbf.joblib`
+- `results/model_metrics.csv`
+- `results/optuna_random_forest_best_params.json`
+- `data/processed/mikrokosmos_catalog.csv`
+- `data/demo/mikrokosmos_99.xml`
+
+The full raw dataset under `data/external/` is useful for regenerating features or retraining, but it is not required for simply launching the apps.
+
 ## Repository Structure
 
 - `deliverables/`: markdown files containing all assignements

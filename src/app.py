@@ -40,6 +40,7 @@ data_module = _load_module("project_data_for_app", SRC_DIR / "data.py")
 model_io_module = _load_module("project_model_io_for_app", SRC_DIR / "model_io.py")
 FEATURE_COLUMNS = data_module.FEATURE_COLUMNS
 load_feature_target_dataset = data_module.load_feature_target_dataset
+load_catalog_dataframe = data_module.load_catalog_dataframe
 extract_symbolic_features_from_musicxml_path = data_module._extract_symbolic_features
 load_model = model_io_module.load_model
 
@@ -322,10 +323,68 @@ def predict_musicxml_bytes(xml_bytes: bytes, filename: str = "uploaded.musicxml"
             "top_probability": float(probability_frame.iloc[0]["Probabilité"]),
             "probability_frame": probability_frame,
             "feature_frame": feature_frame,
+            "feature_row": feature_row,
         }
     finally:
         if temp_path is not None:
             temp_path.unlink(missing_ok=True)
+
+
+def _piece_id_from_filename(filename: str) -> int | None:
+    stem = Path(filename).stem
+    return int(stem) if stem.isdigit() else None
+
+
+def recommend_musicxml_bytes(xml_bytes: bytes, filename: str = "uploaded.musicxml", top_k: int = 5) -> pd.DataFrame:
+    """Recommend similar catalog pieces from the predicted difficulty level.
+
+    The recommendation is intentionally simple for the prototype: predict the
+    uploaded score level, keep catalog pieces with that same level, and rank
+    them by normalized distance on the same symbolic features used by training.
+    """
+
+    payload = predict_musicxml_bytes(xml_bytes, filename=filename)
+    predicted_label = str(payload["predicted_label"])
+    uploaded_features = pd.Series(payload["feature_row"], dtype=float).reindex(FEATURE_COLUMNS).fillna(0.0)
+
+    catalog_df = load_catalog_dataframe()
+    candidate_df = catalog_df[catalog_df["difficulty_label"] == predicted_label].copy()
+    uploaded_piece_id = _piece_id_from_filename(filename)
+    if uploaded_piece_id is not None and "piece_id" in candidate_df.columns:
+        candidate_df = candidate_df[candidate_df["piece_id"] != uploaded_piece_id]
+
+    if candidate_df.empty:
+        return pd.DataFrame(
+            columns=[
+                "piece_id",
+                "work",
+                "book",
+                "difficulty_label",
+                "henle_difficulty",
+                "distance",
+                "similarity_score",
+            ]
+        )
+
+    feature_df = catalog_df[FEATURE_COLUMNS].astype(float)
+    scale = feature_df.std(axis=0).replace(0, 1.0)
+    center = feature_df.mean(axis=0)
+    candidate_features = (candidate_df[FEATURE_COLUMNS].astype(float) - center) / scale
+    uploaded_vector = (uploaded_features - center) / scale
+    distances = ((candidate_features - uploaded_vector) ** 2).sum(axis=1) ** 0.5
+
+    recommendations = candidate_df[
+        ["piece_id", "work", "book", "difficulty_label", "henle_difficulty"]
+    ].copy()
+    recommendations["distance"] = distances.astype(float)
+    recommendations = recommendations.sort_values("distance", ascending=True).head(top_k).reset_index(drop=True)
+    max_distance = float(recommendations["distance"].max()) if not recommendations.empty else 0.0
+    if max_distance > 0:
+        recommendations["similarity_score"] = 1.0 - (recommendations["distance"] / max_distance)
+    else:
+        recommendations["similarity_score"] = 1.0
+    recommendations["similarity_score"] = recommendations["similarity_score"].clip(0.0, 1.0)
+    return recommendations
 
 
 def build_target_distribution_dataframe() -> pd.DataFrame:

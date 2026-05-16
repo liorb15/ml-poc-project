@@ -35,6 +35,8 @@ STREAMLIT_PORT = 8501
 DATASET_NAME = os.getenv("PIANO_DATASET", "mikrokosmos").strip().lower()
 
 MIKROKOSMOS_DIR = DATA_DIR / "external" / "Mikrokosmos-difficulty"
+PROCESSED_MIKROKOSMOS_CATALOG_FILE = DATA_DIR / "processed" / "mikrokosmos_catalog.csv"
+DEMO_MIKROKOSMOS_XML_FILE = DATA_DIR / "demo" / "mikrokosmos_99.xml"
 CIPI_DIR = Path(os.getenv("CIPI_DIR", str(DATA_DIR / "external" / "CIPI")))
 
 MODELS = {

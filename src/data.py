@@ -16,7 +16,7 @@ from typing import Any
 import pandas as pd
 from sklearn.model_selection import train_test_split
 
-from config import CIPI_DIR, DATA_DIR, DATASET_NAME
+from config import CIPI_DIR, DATA_DIR, DATASET_NAME, PROCESSED_MIKROKOSMOS_CATALOG_FILE
 
 MIKROKOSMOS_DIR = DATA_DIR / "external" / "Mikrokosmos-difficulty"
 MIKROKOSMOS_XML_DIR = MIKROKOSMOS_DIR / "musicxml"
@@ -71,9 +71,19 @@ def _coarse_difficulty(label: str) -> str:
 
 @lru_cache(maxsize=1)
 def _load_mikrokosmos_dataframe() -> pd.DataFrame:
+    """Load Mikrokosmos features from raw XML when available, else from a cached catalog.
+
+    The cached catalog makes a forked repository runnable without forcing the
+    user to download the full raw dataset or retrain the models.
+    """
+
     if not MIKROKOSMOS_METADATA_FILE.exists():
+        if PROCESSED_MIKROKOSMOS_CATALOG_FILE.exists():
+            return pd.read_csv(PROCESSED_MIKROKOSMOS_CATALOG_FILE).sort_values("piece_id").reset_index(drop=True)
         raise FileNotFoundError(
-            f"Mikrokosmos metadata file not found: {MIKROKOSMOS_METADATA_FILE}"
+            "Mikrokosmos dataset is missing. Expected either the raw metadata file "
+            f"at {MIKROKOSMOS_METADATA_FILE} or the processed catalog at "
+            f"{PROCESSED_MIKROKOSMOS_CATALOG_FILE}."
         )
 
     rows: list[dict[str, Any]] = []
@@ -276,10 +286,20 @@ def _extract_symbolic_features(xml_path: Path) -> dict[str, float]:
     }
 
 
+def load_catalog_dataframe() -> pd.DataFrame:
+    """Return the selected dataset with metadata, features, and labels.
+
+    This is useful for presentation and recommendation layers that need to
+    display the piece identity in addition to the training features.
+    """
+
+    return _load_selected_dataset_dataframe().copy()
+
+
 def load_feature_target_dataset() -> tuple[pd.DataFrame, pd.Series]:
     """Return the feature matrix X and target vector y for the selected dataset."""
 
-    dataset_df = _load_selected_dataset_dataframe()
+    dataset_df = load_catalog_dataframe()
     X = dataset_df[FEATURE_COLUMNS].copy()
     y = dataset_df[TARGET_COLUMN].copy()
     return X, y
