@@ -1,8 +1,10 @@
-# ML Project Template
+# Piano Difficulty Prediction Prototype
 
-This repository is the base template that each student will fork and adapt for the final machine learning proof-of-concept project.
+This project is a machine learning proof of concept for estimating the difficulty level of piano pieces from symbolic score data. It uses MusicXML files from the Mikrokosmos corpus, extracts interpretable musical features such as note density, rhythmic variety, pitch range, chords, rests, and tonal context, then compares several supervised models to predict a coarse difficulty class: `beginner`, `intermediate`, or `advanced`.
 
-The template already defines the project structure and the main execution workflow. Your job as a student is to plug your own dataset loading logic, trained models, evaluation metrics, and Streamlit presentation into the fixed contracts described below.
+The goal is not to claim a universal piano-difficulty model. The current dataset is intentionally small and homogeneous, so the project is framed as a prototype: it tests whether structured score features contain a usable predictive signal, demonstrates a complete ML workflow, and provides a Streamlit interface for explaining the results and running a lightweight prediction demo.
+
+This repository is based on the course ML project template, but it now contains the trained models, precomputed evaluation results, and lightweight processed data needed to run the app without retraining.
 
 ## Run the piano prototype without retraining
 
@@ -258,9 +260,45 @@ The object loaded from disk is not a trained model compatible with the template 
 
 You still need to customize `src/app.py` with your project content.
 
-## Notes
+## Data retrieval guide
 
-- Keep `scripts/main.py` as the main orchestration entry point.
-- Keep the function names and signatures in `src/data.py`, `src/metrics.py`, and `src/app.py` unchanged.
-- Save your trained models before running the template.
-- Use the same evaluation logic for all registered models so the comparison remains fair.
+The application can run directly from the files already included in this repository. For normal review or grading, no retraining is required and no external dataset download is needed.
+
+The minimal runnable data artifacts are:
+
+- `data/processed/mikrokosmos_catalog.csv`: precomputed feature table for the 147 retained Mikrokosmos pieces;
+- `data/demo/mikrokosmos_99.xml`: small MusicXML file used by the built-in demo;
+- `models/*.joblib`: trained models used by the app;
+- `results/model_metrics.csv`: saved model-comparison metrics.
+
+If you want to regenerate the features from the raw data instead of using the precomputed catalog, place the Mikrokosmos difficulty dataset under:
+
+```text
+data/external/Mikrokosmos-difficulty/
+```
+
+with the following expected structure:
+
+```text
+data/external/Mikrokosmos-difficulty/
+├── metadata/
+│   └── mikrokosmos_metadata.csv
+└── musicxml/
+    ├── 1.xml
+    ├── 2.xml
+    └── ...
+```
+
+The project loader works in this order:
+
+1. if the raw Mikrokosmos metadata and MusicXML files are present, it can rebuild the feature table from them;
+2. otherwise, it falls back to `data/processed/mikrokosmos_catalog.csv`, so the apps remain runnable from a clean fork.
+
+A future dataset extension is prepared through environment variables:
+
+```bash
+PIANO_DATASET=cipi
+CIPI_DIR=/path/to/cipi
+```
+
+CIPI support is intentionally not enabled silently yet: if `PIANO_DATASET=cipi` is selected without a valid parser and dataset, the project raises a clear error instead of falling back to Mikrokosmos unnoticed.
